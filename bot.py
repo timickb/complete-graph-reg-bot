@@ -45,6 +45,7 @@ def register(update: Update, _: CallbackContext) -> None:
         if update.message.text == PASSWORD:
             authorized_users.append(update.effective_user.id)
             update.message.reply_text(SUCCESS_AUTH_MESSAGE)
+            logger.log(0, f'Authorized {update.effective_user.id}')
             return
         else:
             update.message.reply_text(NOT_AUTHORIZED_MESSAGE)
