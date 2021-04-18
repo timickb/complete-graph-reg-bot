@@ -88,13 +88,13 @@ def main():
     global registrator
     global authorized_users
 
-    registrator = Registrator(settings.CREDENTIALS_FILE, settings.TEST_SPREADSHEET_ID, settings.TEST_SHEET_ID)
+    registrator = Registrator(settings.CREDENTIALS_FILE, settings.SPREADSHEET_ID, settings.SHEET_ID)
     authorized_users = load_authorized_users()
 
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-    updater = Updater(settings.TEST_BOT_TOKEN)
+    updater = Updater(settings.BOT_TOKEN)
 
     dispatcher = updater.dispatcher
     dispatcher.add_handler(CommandHandler("start", start_handler))
