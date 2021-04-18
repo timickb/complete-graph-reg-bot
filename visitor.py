@@ -12,5 +12,4 @@ class Visitor:
         return [str(self.visitMonthDay), 
                 str(self.name) + ' ' + str(self.surname),
                 str(self.visitTime),
-                str(self.tariff), "-",
-                ""]
+                str(self.tariff), "-"]

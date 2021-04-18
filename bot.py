@@ -1,105 +1,108 @@
 import logging
 import os
+import settings
+import json
+
 from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from registrator import Registrator
 
-INCORRECT_FORMAT_MESSAGE = "Некорректный формат"
-SUCCESS_MESSAGE = "Визит успешно зафиксирован!"
-SUCCESS_AUTH_MESSAGE = "Вы успешно авторизованы!"
-NOT_AUTHORIZED_MESSAGE = "Введите корректный код доступа к системе, чтобы иметь возможность регистрировать гостей."
-BOT_TOKEN = os.environ['CGRB_BOT_TOKEN']
-CREDENTIALS_FILE = 'key.json'
-SPREADSHEET_ID = os.environ['CGRB_SPREADSHEET_ID']
-SHEET_ID = os.environ['CGRB_SHEET_ID']
-TEST_SPREADSHEET_ID = os.environ['CGRB_TEST_SPREADSHEET_ID']
-PASSWORD = os.environ['CGRB_PASSWORD']
-
-registrator = Registrator(CREDENTIALS_FILE, SPREADSHEET_ID, SHEET_ID)
-
-authorized_users = []
-
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
-)
-
-logger = logging.getLogger(__name__)
 
 def validate_name(name):
-    if len(name) > 20:
+
+    if len(name) > settings.MAX_NAME_LENGTH:
         return False
-    blocked = "=!@#$%^&*()\{\}'/<>[].,"
-    for letter in blocked:
+
+    for letter in settings.BLOCKED_NAME_SYMBOLS:
         if letter in name:
             return False
     return True
 
 
-def start(update: Update, _: CallbackContext) -> None:
-    user = update.effective_user
-    update.message.reply_text('Hello!')
+def validate_tariff(tariff):
+    try:
+        tariff = float(tariff)
+    except ValueError:
+        return False
+    return (tariff >= 0) and (tariff <= settings.MAX_TARIFF_VALUE)
 
-def register(update: Update, _: CallbackContext) -> None:
+
+def authorize_user(user_id, password):
+    if password == settings.PASSWORD:
+        authorized_users.append(user_id)
+        with open("authorized_users.json", "w") as f:
+            f.write(json.dumps(authorized_users))
+        return True
+    return False
+
+
+def start_handler(update: Update, _: CallbackContext) -> None:
+    if update.effective_user.id in authorized_users:
+        update.message.reply_text(settings.HELLO_MESSAGE)
+        return
+    update.message.reply_text(settings.FIRST_USE_MESSAGE)
+
+
+def message_handler(update: Update, _: CallbackContext) -> None:
     
     if update.effective_user.id not in authorized_users:
-        if update.message.text == PASSWORD:
-            authorized_users.append(update.effective_user.id)
-            update.message.reply_text(SUCCESS_AUTH_MESSAGE)
-            logger.log(0, f'Authorized {update.effective_user.id}')
+        if authorize_user(update.effective_user.id, update.message.text):
+            update.message.reply_text(settings.SUCCESS_AUTH_MESSAGE)
             return
         else:
-            update.message.reply_text(NOT_AUTHORIZED_MESSAGE)
+            update.message.reply_text(settings.NOT_AUTHORIZED_MESSAGE)
             return
 
     words = update.message.text.split()
+    name = surname = tariff = None
 
     if len(words) == 2:
         name = words[0]
-        tariff = words[1]      
-        try:
-            tariff = float(tariff)
-        except ValueError:
-            update.message.reply_text(INCORRECT_FORMAT_MESSAGE)
-            return
-        
-        if not validate_name(name):
-            update.message.reply_text(INCORRECT_FORMAT_MESSAGE)
-            return
-
-        registrator.register_visitor(name, '', tariff)
-        update.message.reply_text(SUCCESS_MESSAGE)
-        return
-
-    if len(words) == 3:
+        surname = ''
+        tariff = words[1].replace(",", ".")
+    elif len(words) == 3:
         name = words[0]
         surname = words[1]
-        tariff = words[2]
-        try:
-            tariff = float(tariff)
-        except ValueError:
-            update.message.reply_text(INCORRECT_FORMAT_MESSAGE)
-            return
-
-        if (not validate_name(name)) or (not validate_name(surname)):
-            update.message.reply_text(INCORRECT_FORMAT_MESSAGE)
-            return
-
-        registrator.register_visitor(name, surname, tariff)
-        update.message.reply_text(SUCCESS_MESSAGE)
+        tariff = words[2].replace(",", ".")
+    else:
+        update.message.reply_text(settings.INCORRECT_FORMAT_MESSAGE)
+        return 
+        
+    if (not validate_name(name)) or (not validate_name(surname)) or (not validate_tariff(tariff)):
+        update.message.reply_text(settings.INCORRECT_FORMAT_MESSAGE)
         return
 
-    update.message.reply_text(INCORRECT_FORMAT_MESSAGE)
+    registrator.register_visitor(name, surname, tariff)
+    update.message.reply_text(settings.SUCCESS_MESSAGE)
+
+
+def load_authorized_users():
+    try:
+        with open('authorized_users.json', 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
 
 
 def main():
-    updater = Updater(BOT_TOKEN)
+    global registrator
+    global authorized_users
+
+    registrator = Registrator(settings.CREDENTIALS_FILE, settings.TEST_SPREADSHEET_ID, settings.TEST_SHEET_ID)
+    authorized_users = load_authorized_users()
+
+    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+    logger = logging.getLogger(__name__)
+
+    updater = Updater(settings.TEST_BOT_TOKEN)
 
     dispatcher = updater.dispatcher
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, register))
+    dispatcher.add_handler(CommandHandler("start", start_handler))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, message_handler))
 
     updater.start_polling()
     updater.idle()
+
 
 
 if __name__ == "__main__":

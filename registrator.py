@@ -1,10 +1,11 @@
-from pprint import pprint
 import httplib2
 import apiclient.discovery
+import logging
+import settings
+
+from pprint import pprint
 from oauth2client.service_account import ServiceAccountCredentials
 from visitor import Visitor
-
-
 
 class Registrator:
 
@@ -18,56 +19,58 @@ class Registrator:
         self.httpAuth = self.credentials.authorize(httplib2.Http())
         self.service = apiclient.discovery.build('sheets', 'v4', http = self.httpAuth)
     
-    def register_visitor(self, name, surname, tariff):
-        try:
-            tariff = float(tariff)
-        except:
-            print('Incorrect tariff value')
-            return
-
-        visitor = Visitor(name, surname, tariff)
-
-        insert_visit_request_body = {
+    def _get_insert_visit_request(self, visitor : Visitor,):
+        """ Возвращает тело запроса для добавления посетителя в таблицу """
+        return {
             "majorDimension": "ROWS",
             "values": [visitor.get_sheet_row()]
         }
-        # закидываем в табличку нового челика
-        insert_visit_response = self.service.spreadsheets().values().append(
-            spreadsheetId = self.spreadsheet_id,
-            range = "A1:E1",
-            valueInputOption = "USER_ENTERED",
-            body = insert_visit_request_body).execute()
-        
-        # вычисляем номер последней заполненной строки
-        last_row_index = int(insert_visit_response['updates']['updatedRange'].split(':')[-1][1:])
 
-        expand_formula_request_body = {
+    def _get_formula_expansion_request(self, last_row_index : int):
+        """ Возвращает тело запроса для копирования формулы рассчета
+        времени и чека в строку с индексом last_row_index + 1 """
+        return {
             'requests': [
                 {
                     'copyPaste': {
                         "source": {
                             'sheetId': self.sheet_id,
                             'startRowIndex': 1,
-                            'startColumnIndex': 5,
+                            'startColumnIndex': settings.TIME_FORMULA_COLUMN_ID,
                             'endRowIndex': 2,
-                            'endColumnIndex': 7 
+                            'endColumnIndex': settings.RECEIPT_FORMULA_COLUMN_ID + 1
                         },
                         "destination": {
                             'sheetId': self.sheet_id,
                             'startRowIndex': last_row_index - 1,
-                            'startColumnIndex': 5,
+                            'startColumnIndex': settings.TIME_FORMULA_COLUMN_ID,
                             'endRowIndex': last_row_index,
-                            'endColumnIndex': 7
+                            'endColumnIndex': settings.RECEIPT_FORMULA_COLUMN_ID + 1
                         },
                         "pasteType": "PASTE_FORMULA"
                     }
                 }
             ]
         }
+    
+    def register_visitor(self, name, surname, tariff):
+        """ Записывает в таблицу посетителя с именем name (+ surname) и тарифом tariff """
 
-        expand_formula_response = self.service.spreadsheets().batchUpdate(
+        # Корректность значения tariff гарантируется.
+        visitor = Visitor(name, surname, float(tariff))
+
+        insert_visit_response = self.service.spreadsheets().values().append(
             spreadsheetId = self.spreadsheet_id,
-            body = expand_formula_request_body).execute()
+            range = "A1:E1",
+            valueInputOption = "USER_ENTERED",
+            body = self._get_insert_visit_request(visitor)).execute()
         
-        pprint(expand_formula_response)
+        # Получение номера последней строки.
+        last_row_index = int(insert_visit_response['updates']['updatedRange'].split(':')[-1][1:])
 
+        # Запрос на копирование формул.
+        self.service.spreadsheets().batchUpdate(
+            spreadsheetId = self.spreadsheet_id,
+            body = self._get_formula_expansion_request(last_row_index)).execute()
+        
+        
