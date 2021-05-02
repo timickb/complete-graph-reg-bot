@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import settings
 import json
 
@@ -84,17 +85,24 @@ def load_authorized_users():
         return []
 
 
-def main():
+def main(test=False):
     global registrator
     global authorized_users
 
-    registrator = Registrator(settings.CREDENTIALS_FILE, settings.SPREADSHEET_ID, settings.SHEET_ID)
+    if test:
+        registrator = Registrator(settings.CREDENTIALS_FILE, settings.SPREADSHEET_ID, settings.SHEET_ID)
+    else:
+        registrator = Registrator(settings.CREDENTIALS_FILE, settings.TEST_SPREADSHEET_ID, settings.TEST_SHEET_ID)
+
     authorized_users = load_authorized_users()
 
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-    updater = Updater(settings.BOT_TOKEN)
+    if test:
+        updater = Updater(settings.TEST_BOT_TOKEN)
+    else:
+        updater = Updater(settings.BOT_TOKEN)
 
     dispatcher = updater.dispatcher
     dispatcher.add_handler(CommandHandler("start", start_handler))
@@ -106,4 +114,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and (sys.argv[1] == "--test"):
+        main(test=True)
+    else:
+        main()
