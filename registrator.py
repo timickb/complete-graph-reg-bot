@@ -1,5 +1,5 @@
 import httplib2
-import apiclient.discovery
+import googleapiclient.discovery
 import logging
 import settings
 
@@ -17,7 +17,7 @@ class Registrator:
             self.credentials_file, 
             ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'])
         self.httpAuth = self.credentials.authorize(httplib2.Http())
-        self.service = apiclient.discovery.build('sheets', 'v4', http = self.httpAuth)
+        self.service = googleapiclient.discovery.build('sheets', 'v4', http = self.httpAuth)
     
     def _get_insert_visit_request(self, visitor : Visitor,):
         """ Возвращает тело запроса для добавления посетителя в таблицу """

@@ -6,7 +6,7 @@ class Visitor:
         self.tariff = str(tariff).replace(".", ",")
         self.name = name
         self.surname = surname
-        self.visitMonthDay = datetime.now().day
+        self.visitMonthDay = datetime.now().strftime("$d.%m")
         self.visitTime = datetime.now().strftime("%H:%M")
     
     def get_sheet_row(self):
