@@ -90,9 +90,9 @@ def main(test=False):
     global authorized_users
 
     if test:
-        registrator = Registrator(settings.CREDENTIALS_FILE, settings.SPREADSHEET_ID, settings.SHEET_ID)
-    else:
         registrator = Registrator(settings.CREDENTIALS_FILE, settings.TEST_SPREADSHEET_ID, settings.TEST_SHEET_ID)
+    else:
+        registrator = Registrator(settings.CREDENTIALS_FILE, settings.SPREADSHEET_ID, settings.SHEET_ID)
 
     authorized_users = load_authorized_users()
 
