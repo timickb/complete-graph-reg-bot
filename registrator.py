@@ -80,20 +80,26 @@ class Registrator:
     
     def get_visitor_receipt(self, visitor_id : int) -> str:
         """ Возвращает ответное сообщение на команду выставления счета посетителю """
+
         try:
             # Проверим посетителя на существование. Для этого ячейка с его именем должна быть непустой.
             check_existing_response = self.service.spreadsheets().values().get(
                 spreadsheetId = self.spreadsheet_id,
-                range = f'B{visitor_id}:B{visitor_id}',
+                range = f'A{visitor_id}:B{visitor_id}',
                 majorDimension = 'ROWS'
             ).execute()
         except googleapiclient.errors.HttpError:
             return settings.UNKNOWN_VISIT_ID_MESSAGE
 
         try:
-            visitor_name = check_existing_response['values'][0][0]
+            visit_date = check_existing_response['values'][0][0]
+            visitor_name = check_existing_response['values'][0][1]
         except KeyError:
             return settings.UNKNOWN_VISIT_ID_MESSAGE
+
+        # Еще важно, чтобы дата посещения совпадала с текущей датой.
+        if datetime.now().strftime("%d.%m") != visit_date:
+            return settings.INVALID_VISIT_DATE_MESSAGE
 
         if len(visitor_name) == 0:
             return settings.UNKNOWN_VISIT_ID_MESSAGE
