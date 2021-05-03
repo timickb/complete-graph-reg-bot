@@ -79,6 +79,8 @@ class Registrator:
         return last_row_index
     
     def get_visitor_receipt(self, visitor_id : int):
+        """ Возвращает сумму к оплате для посетителя с идентификатором visitor_id на
+        основе текущего времени """
         try:
             # Проверим посетителя на существование. Для этого ячейка с его именем должна быть непустой.
             check_existing_response = self.service.spreadsheets().values().get(
