@@ -53,15 +53,16 @@ class Registrator:
             ]
         }
     
-    def register_visitor(self, name, surname, tariff):
-        """ Записывает в таблицу посетителя с именем name (+ surname) и тарифом tariff """
+    def register_visitor(self, name, surname, tariff, comment):
+        """ Записывает в таблицу посетителя с именем name, фамилией surname, тарифом tariff 
+        и опционально с комментарием"""
 
         # Корректность значения tariff гарантируется.
-        visitor = Visitor(name, surname, float(tariff))
+        visitor = Visitor(name, surname, float(tariff), comment)
 
         insert_visit_response = self.service.spreadsheets().values().append(
             spreadsheetId = self.spreadsheet_id,
-            range = "A1:E1",
+            range = "A1:H1",
             valueInputOption = "USER_ENTERED",
             body = self._get_insert_visit_request(visitor)).execute()
         

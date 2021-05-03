@@ -55,16 +55,16 @@ def message_handler(update: Update, _: CallbackContext) -> None:
             return
 
     words = update.message.text.split()
-    name = surname = tariff = None
+    name = surname = tariff = phone = None
 
-    if len(words) == 2:
-        name = words[0]
-        surname = ''
-        tariff = words[1].replace(",", ".")
-    elif len(words) == 3:
+    if len(words) >= 3:
         name = words[0]
         surname = words[1]
         tariff = words[2].replace(",", ".")
+        comment = ''
+        if len(words) >= 4:
+            for i in range(3, len(words)):
+                comment += (words[i] + ' ')
     else:
         update.message.reply_text(settings.INCORRECT_FORMAT_MESSAGE)
         return 
@@ -73,7 +73,7 @@ def message_handler(update: Update, _: CallbackContext) -> None:
         update.message.reply_text(settings.INCORRECT_FORMAT_MESSAGE)
         return
 
-    registrator.register_visitor(name, surname, tariff)
+    registrator.register_visitor(name, surname, tariff, comment)
     update.message.reply_text(settings.SUCCESS_MESSAGE)
 
 
