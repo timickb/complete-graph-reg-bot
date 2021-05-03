@@ -74,4 +74,7 @@ class Registrator:
             spreadsheetId = self.spreadsheet_id,
             body = self._get_formula_expansion_request(last_row_index)).execute()
         
+        # Возвращаем номер последней строки в качестве идентификатора посетителя.
+        return last_row_index
+        
         

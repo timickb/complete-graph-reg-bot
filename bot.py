@@ -73,8 +73,8 @@ def message_handler(update: Update, _: CallbackContext) -> None:
         update.message.reply_text(settings.INCORRECT_FORMAT_MESSAGE)
         return
 
-    registrator.register_visitor(name, surname, tariff, comment)
-    update.message.reply_text(settings.SUCCESS_MESSAGE)
+    visitor_id = registrator.register_visitor(name, surname, tariff, comment)
+    update.message.reply_text(settings.SUCCESS_MESSAGE + str(visitor_id))
 
 
 def load_authorized_users():
