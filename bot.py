@@ -57,6 +57,22 @@ def message_handler(update: Update, _: CallbackContext) -> None:
     words = update.message.text.split()
     name = surname = tariff = phone = None
 
+    if words[0] == settings.RECEIPT_COMMAND:
+        if len(words) < 2:
+            update.message.reply_text(settings.INCORRECT_RECEIPT_FORMAT_MESSAGE)
+            return
+
+        visitor_id = None
+        try:
+            visitor_id = int(words[1])
+        except ValueError:
+            update.message.reply_text(settings.INCORRECT_RECEIPT_FORMAT_MESSAGE)
+            return
+        
+        data = registrator.get_visitor_receipt(visitor_id)
+        update.message.reply_text(data)
+        return
+
     if len(words) >= 3:
         name = words[0]
         surname = words[1]

@@ -6,6 +6,7 @@ import settings
 from pprint import pprint
 from oauth2client.service_account import ServiceAccountCredentials
 from visitor import Visitor
+from datetime import datetime
 
 class Registrator:
 
@@ -19,14 +20,14 @@ class Registrator:
         self.httpAuth = self.credentials.authorize(httplib2.Http())
         self.service = googleapiclient.discovery.build('sheets', 'v4', http = self.httpAuth)
     
-    def _get_insert_visit_request(self, visitor : Visitor,):
+    def __get_insert_visit_request(self, visitor : Visitor,):
         """ Возвращает тело запроса для добавления посетителя в таблицу """
         return {
             "majorDimension": "ROWS",
             "values": [visitor.get_sheet_row()]
         }
 
-    def _get_formula_expansion_request(self, last_row_index : int):
+    def __get_formula_expansion_request(self, last_row_index : int):
         """ Возвращает тело запроса для копирования формулы рассчета
         времени и чека в строку с индексом last_row_index + 1 """
         return {
@@ -64,7 +65,7 @@ class Registrator:
             spreadsheetId = self.spreadsheet_id,
             range = "A1:H1",
             valueInputOption = "USER_ENTERED",
-            body = self._get_insert_visit_request(visitor)).execute()
+            body = self.__get_insert_visit_request(visitor)).execute()
         
         # Получение номера последней строки.
         last_row_index = int(insert_visit_response['updates']['updatedRange'].split(':')[-1][1:])
@@ -72,9 +73,55 @@ class Registrator:
         # Запрос на копирование формул.
         self.service.spreadsheets().batchUpdate(
             spreadsheetId = self.spreadsheet_id,
-            body = self._get_formula_expansion_request(last_row_index)).execute()
+            body = self.__get_formula_expansion_request(last_row_index)).execute()
         
         # Возвращаем номер последней строки в качестве идентификатора посетителя.
         return last_row_index
+    
+    def get_visitor_receipt(self, visitor_id : int):
+        try:
+            # Проверим посетителя на существование. Для этого ячейка с его именем должна быть непустой.
+            check_existing_response = self.service.spreadsheets().values().get(
+                spreadsheetId = self.spreadsheet_id,
+                range = f'B{visitor_id}:B{visitor_id}',
+                majorDimension = 'ROWS'
+            ).execute()
+        except googleapiclient.errors.HttpError:
+            return settings.UNKNOWN_VISIT_ID_MESSAGE
+
+        try:
+            visitor_name = check_existing_response['values'][0][0]
+        except KeyError:
+            return settings.UNKNOWN_VISIT_ID_MESSAGE
+
+        if len(visitor_name) == 0:
+            return settings.UNKNOWN_VISIT_ID_MESSAGE
+        
+        # Присвоим его ячейке "Убытие" текущее время.
+        set_time_response = self.service.spreadsheets().values().batchUpdate(
+            spreadsheetId = self.spreadsheet_id,
+            body = {
+            "valueInputOption": "USER_ENTERED",
+            "data": [
+                {
+                    "range": f'E{visitor_id}:E{visitor_id}',
+                    "majorDimension": "ROWS",
+                    "values": [[datetime.now().strftime("%H:%M")]]
+                }
+            ]
+        }
+        ).execute()
+
+        # Вытаскиваем сумму, которую должен заплатить посетитель.
+        receipt_response = self.service.spreadsheets().values().get(
+            spreadsheetId = self.spreadsheet_id,
+            range = f'F{visitor_id}:G{visitor_id}',
+            majorDimension = 'ROWS'
+        ).execute()
+
+        spent_time = receipt_response['values'][0][0]
+        receipt = receipt_response['values'][0][1]
+
+        return settings.RECEIPT_MESSAGE % (visitor_name, spent_time, receipt)
         
         
