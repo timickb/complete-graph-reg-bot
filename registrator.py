@@ -27,7 +27,7 @@ class Registrator:
             "values": [visitor.get_sheet_row()]
         }
 
-    def __get_formula_expansion_request(self, last_row_index : int):
+    def __get_formula_expansion_request(self, last_row_index : int) -> dict:
         """ Возвращает тело запроса для копирования формулы рассчета
         времени и чека в строку с индексом last_row_index + 1 """
         return {
@@ -54,9 +54,9 @@ class Registrator:
             ]
         }
     
-    def register_visitor(self, name, surname, tariff, comment):
+    def register_visitor(self, name, surname, tariff, comment) -> int:
         """ Записывает в таблицу посетителя с именем name, фамилией surname, тарифом tariff 
-        и опционально с комментарием"""
+        и опционально с комментарием, возвращает идентификатор нового посетителя"""
 
         # Корректность значения tariff гарантируется.
         visitor = Visitor(name, surname, float(tariff), comment)
@@ -78,9 +78,8 @@ class Registrator:
         # Возвращаем номер последней строки в качестве идентификатора посетителя.
         return last_row_index
     
-    def get_visitor_receipt(self, visitor_id : int):
-        """ Возвращает сумму к оплате для посетителя с идентификатором visitor_id на
-        основе текущего времени """
+    def get_visitor_receipt(self, visitor_id : int) -> str:
+        """ Возвращает ответное сообщение на команду выставления счета посетителю """
         try:
             # Проверим посетителя на существование. Для этого ячейка с его именем должна быть непустой.
             check_existing_response = self.service.spreadsheets().values().get(
